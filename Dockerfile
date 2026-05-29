@@ -33,11 +33,16 @@ RUN rm -f composer.lock && composer update --no-interaction --optimize-autoloade
 # 7. Cấp quyền ghi cho thư mục storage và bootstrap/cache để Laravel chạy mượt mà
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
+# ==================== ĐOẠN THÊM MỚI VÀO ĐÂY ====================
+# Ép container tự dọn sạch hoàn toàn các file cache cũ (nếu có) từ localhost sao chép lên
+RUN php artisan config:clear && php artisan route:clear && php artisan cache:clear
+# ===============================================================
+
 # 8. Cấu hình Port theo Render
 RUN sed -i 's/Listen 80/Listen ${PORT}/g' /etc/apache2/ports.conf
 RUN sed -i 's/<VirtualHost \*:80>/<VirtualHost \*:${PORT}>/g' /etc/apache2/sites-available/000-default.conf
 
 EXPOSE ${PORT}
 
-# 9. SỬ DỤNG LỆNH KHỞI ĐỘNG CỦA APACHE (Bỏ qua việc dọn cache tại bước build này)
+# 9. SỬ DỤNG LỆNH KHỞI ĐỘNG CỦA APACHE
 CMD ["apache2-foreground"]
