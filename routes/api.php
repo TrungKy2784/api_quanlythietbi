@@ -153,8 +153,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
 });
 
-Route::post('login', [AuthController::class, 'login']);
-Route::post('register', [AuthController::class, 'register']);
+Route::post('/api/login', [AuthController::class, 'login']);
+Route::post('/api/register', [AuthController::class, 'register']);
 
 Route::get('nhanvien-khong-co-tk', [NhanVienController::class, 'nhanVienChuaCoTaiKhoan']);
 Route::get('dashboard/stats', [DashboardController::class, 'getDeviceStats']);
