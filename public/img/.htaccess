@@ -1,0 +1,120 @@
+<?php
+// Cách 1: Thêm vào file .htaccess trong thư mục img/
+// File: public/img/.htaccess
+/*
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, DELETE, PUT"
+Header always set Access-Control-Allow-Headers "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range"
+Header always set Access-Control-Expose-Headers "Content-Length,Content-Range"
+*/
+
+// Cách 2: Tạo file serve ảnh riêng
+// File: api/image.php
+if (isset($_GET['file'])) {
+    $filename = $_GET['file'];
+    
+    // Validate filename để tránh path traversal
+    if (strpos($filename, '..') !== false || strpos($filename, '/') !== false) {
+        http_response_code(400);
+        die('Invalid filename');
+    }
+    
+    // Set CORS headers
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET');
+    header('Access-Control-Allow-Headers: Content-Type');
+    
+    // Đường dẫn đến thư mục ảnh
+    $imagePath = '../public/img/' . $filename;
+    // Hoặc: $imagePath = $_SERVER['DOCUMENT_ROOT'] . '/img/' . $filename;
+    
+    if (file_exists($imagePath)) {
+        // Detect content type
+        $imageInfo = getimagesize($imagePath);
+        $mimeType = $imageInfo['mime'] ?? 'application/octet-stream';
+        
+        header('Content-Type: ' . $mimeType);
+        header('Content-Length: ' . filesize($imagePath));
+        
+        // Output file
+        readfile($imagePath);
+    } else {
+        http_response_code(404);
+        die('Image not found');
+    }
+} else {
+    http_response_code(400);
+    die('No file specified');
+}
+
+// Cách 3: Thêm CORS headers vào index.php chính
+// File: index.php (hoặc file chính)
+// Thêm vào đầu file:
+header('Access-Control-Allow-Origin: http://localhost:3000');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Credentials: true');
+
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+// Cách 4: Nếu dùng Laravel
+// File: app/Http/Middleware/Cors.php
+/*
+<?php
+namespace App\Http\Middleware;
+
+use Closure;
+
+class Cors
+{
+    public function handle($request, Closure $next)
+    {
+        return $next($request)
+            ->header('Access-Control-Allow-Origin', 'http://localhost:3000')
+            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    }
+}
+
+// Sau đó register trong app/Http/Kernel.php:
+protected $middleware = [
+    \App\Http\Middleware\Cors::class,
+];
+*/
+
+// Cách 5: Tạo API endpoint riêng cho ảnh
+// File: api/images.php
+$requestUri = $_SERVER['REQUEST_URI'];
+$path = parse_url($requestUri, PHP_URL_PATH);
+
+if (preg_match('/\/api\/images\/(.+)$/', $path, $matches)) {
+    $filename = $matches[1];
+    
+    // Set CORS
+    header('Access-Control-Allow-Origin: *');
+    
+    // Validate filename
+    if (strpos($filename, '..') !== false) {
+        http_response_code(400);
+        die('Invalid filename');
+    }
+    
+    $imagePath = __DIR__ . '/../public/img/' . $filename;
+    
+    if (file_exists($imagePath)) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $imagePath);
+        finfo_close($finfo);
+        
+        header('Content-Type: ' . $mimeType);
+        readfile($imagePath);
+    } else {
+        http_response_code(404);
+        echo json_encode(['error' => 'Image not found']);
+    }
+}
+?>
